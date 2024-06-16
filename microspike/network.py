@@ -15,7 +15,6 @@ class NetworkBase():
             ) -> None:
         self.synapses: List[Synapse] = []
         self.layers: List[BaseModel] = []
-        self.potential: List[np.ndarray] = []
         self.input_train: Optional[InputTrain] = None
         self.dt: float = dt
         self.current_t: float = 0.0 ## also add in reset()!
@@ -30,7 +29,6 @@ class NetworkBase():
         if layer.monitor:
             self.update_dt(layer.monitor)
         self.layers.append(layer)
-        self.potential.append(np.zeros((layer.N, 1)))
 
     def add_input_train(self, input_train: InputTrain):
         self.input_train = input_train
@@ -48,26 +46,45 @@ class NetworkBase():
     def update_dt(self, obj):
         obj.dt = self.dt
 
-    def check_post_spike(self, layer: BaseModel, l: int, synapse: Synapse, monitor: Monitor):
+    def get_idx_post_spiking(self, layer):
+        """
+        this function will return the index of post-neuron that can spike and has the most potential
+        """
+        idx_spike = layer.get_kwta()
+        return idx_spike
+    
+    def get_idx_pre_spiking(self): 
+        # STDP LTD Rule
+        idx_right = np.searchsorted(self.input_train.spikes_t, self.current_t, side='right')
+        idx_left = np.searchsorted(self.input_train.spikes_t, self.current_t, side='left')
+        return self.input_train.spikes_i[idx_left:idx_right]
 
-        # idx : index of neurons not in refractory period.
-        idx = layer.check_refractory()
-        # idx_spike is the index of the neurons not in refractory period and their membrane potential above threshold
-        idx_spike = self.potential[l] >= layer.threshold
-        idx_spike = idx * idx_spike
-        synapse.on_post_w(idx_spike)
-        # synapse.on_post_test(idx, self.current_t)
+
+
+    def update_synapse(self, layer: BaseModel, synapse: Synapse, idx_post: np.array, idx_pre: np.array):
+
+        synapse.update_synapse(idx_post, idx_pre)
         
+    def update_monitor(self, layer: BaseModel, l: int, monitor: Monitor, idx_post: np.array):
         if monitor:
-            monitor.record_spike(self.current_t, idx_spike)
+            monitor.record_spike(self.current_t, idx_post)
             if monitor.potential_rec.shape[0] == 1:
-                if idx_spike.squeeze() == True:
+                if idx_post.squeeze() == True:
                     monitor.potential_rec[0, self.current_it] = layer.eta_kernel(0.0)
             else:
-                monitor.potential_rec[idx_spike.squeeze(), self.current_it] = layer.eta_kernel(0.0)
-        layer.start_refractory(idx_spike, self.current_t)
+                monitor.potential_rec[idx_post.squeeze(), self.current_it] = layer.eta_kernel(0.0)
+        layer.start_refractory(idx_post, self.current_t)
 
-    def get_potential(self, layer, l):
+        ## TODO: check if there's actually a bug in the code or input!
+        ## TODO: checing if there is a pre-neuron that spikes more than once in one time step
+        # if len(spikes_i[idx_left:idx_right]) != len(set(spikes_i[idx_left:idx_right])):
+        #     print("There is a bug here!")
+        #     print(idx_left, idx_right)
+        #     print(spikes_i[idx_left:idx_right])
+        #     print(spikes_t[idx_left:idx_right])
+        #     print(len(spikes_i[idx_left:idx_right]), len(set(spikes_i[idx_left:idx_right])))
+
+    def get_potential(self, layer: BaseModel, l: int):
         spikes_t = self.input_train.spikes_t
         spikes_i = self.input_train.spikes_i
         new_potential = np.array([]) 
@@ -80,54 +97,31 @@ class NetworkBase():
             spikes_i_i = spikes_i[start_slice:end_slice]
 
             w_tmp = self.synapses[l].get_w_tmp(spikes_i_i, i)
-            potential_i = layer.forward(spikes_t_i, w_tmp, self.current_t, self.current_it, i)
+            potential_i = layer.forward(spikes_t_i, w_tmp, self.current_t, i)
             new_potential = np.append(new_potential, potential_i)
         
         if layer.monitor:
             layer.monitor.record_potential(self.current_it + 1, new_potential)
-        self.potential = np.array(new_potential)
+        
+        layer.potential = new_potential.reshape(-1,1)
 
 
 class Network(NetworkBase):
-    def __init__(self,):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     
     def run_one_step(self):
-        spikes_t = self.input_train.spikes_t
-        spikes_i = self.input_train.spikes_i  
+        
         ## WARNING:
         ## TODO: There is a bug here when a deep network is defined.
         ## here istead of a usinng spike_t which is from the InputTrain
         ## we should instead use the spike train from previous layer not the input!
-        for l, layer in enumerate(self.layers):
-                        
-            self.check_post_spike(layer=layer, l=l, synapse=self.synapses[l], monitor=layer.monitor)
+        for l, layer in enumerate(self.layers):       
+            idx_post_spiking = self.get_idx_post_spiking(layer)
+            idx_pre_spiking = self.get_idx_pre_spiking()
+            self.update_synapse(layer=layer, synapse=self.synapses[l], idx_post= idx_post_spiking, idx_pre= idx_pre_spiking)
+            self.update_monitor(layer=layer, l=l, monitor=layer.monitor, idx_post= idx_post_spiking)
             self.get_potential(layer, l)
-
-            # STDP LTD Rule
-            idx_right = np.searchsorted(spikes_t, self.current_t, side='right')
-            idx_left = np.searchsorted(spikes_t, self.current_t, side='left')
-
-            ## TODO: check if there's actually a bug in the code or input!
-            ## TODO: checing if there is a pre-neuron that spikes more than once in one time step
-            # if len(spikes_i[idx_left:idx_right]) != len(set(spikes_i[idx_left:idx_right])):
-            #     print("There is a bug here!")
-            #     print(idx_left, idx_right)
-            #     print(spikes_i[idx_left:idx_right])
-            #     print(spikes_t[idx_left:idx_right])
-            #     print(len(spikes_i[idx_left:idx_right]), len(set(spikes_i[idx_left:idx_right])))
-
-            self.synapses[l].on_pre_w(spikes_i[idx_left:idx_right])
-            # self.synapses[l].on_pre_test(spikes_i[idx_left:idx_right], self.current_t)    
-
-            idx = layer.check_refractory()
-            idx_spike = self.potential[l] >= layer.threshold
-            idx_spike = idx * idx_spike
-            self.synapses[l].on_post_a(idx_spike)
-            self.synapses[l].on_pre_a(spikes_i[idx_left:idx_right])
-            # self.synapses[l].update_ti_tj_test(idx_pre=spikes_i[idx_left:idx_right], idx_post=idx_spike, current_t=self.current_t)
-
-            self.synapses[l].update_a()
 
             #### save logs 
             # self.synapses[l].monitor.record_weight()
@@ -140,6 +134,7 @@ class Network(NetworkBase):
         """
         time (ms)
         """
+        time = int(time * (DEFAULT_DT / self.dt))
         self.init_records(time)
         ## Check the behaviour of + self.dt on the last loop step
         for it in range(time):

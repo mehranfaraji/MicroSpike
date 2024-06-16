@@ -58,8 +58,8 @@ class Synapse():
         """
         idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
         """
-        self.w[:, idx.squeeze()] = np.clip(self.w[:, idx.squeeze()] + self.a_pre[:, idx.squeeze()], self.w_min, self.w_max)
-        self.a_pre[:, idx.squeeze()] = 0.
+        self.w[:, idx] = np.clip(self.w[:, idx] + self.a_pre[:, idx], self.w_min, self.w_max)
+        self.a_pre[:, idx] = 0.
 
 
     def on_pre_a(self, idx):
@@ -76,12 +76,23 @@ class Synapse():
         idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
         """
         if self.approximate:
-            self.a_post[:, idx.squeeze()] = self.A_post
-        else: self.a_post[:, idx.squeeze()] += self.A_post
+            self.a_post[:, idx] = self.A_post
+        else: self.a_post[:, idx] += self.A_post
 
     def update_a(self):
         self.a_pre = self.a_pre - self.dt / self.tau_pre * self.a_pre
         self.a_post = self.a_post - self.dt / self.tau_post * self.a_post
+
+    def update_synapse(self,idx_post_spikinig, idx_pre_spiking):
+        self.on_post_w(idx_post_spikinig)
+        # synapse.on_post_test(idx, self.current_t)
+        self.on_pre_w(idx_pre_spiking)
+        # synapse.on_pre_test(spikes_i[idx_left:idx_right], self.current_t)    
+        self.on_post_a(idx_post_spikinig)
+        self.on_pre_a(idx_pre_spiking)
+        # synapses.update_ti_tj_test(idx_pre=spikes_i[idx_left:idx_right], idx_post=idx_spike, current_t=self.current_t)
+        self.update_a()
+
 
     # def on_pre_test(self, idx, current_t):
     #     """

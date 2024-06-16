@@ -19,11 +19,12 @@ class Monitor():
         self.potential_rec = np.zeros((self.N, T))
 
     def record_spike(self, current_t, idx):
-        tmp_t = [current_t] * (idx)
-        tmp_t = tmp_t[idx]
+        """
+        idx is the index number of the neuron (one neuron!) that is spiking
+        """
+        tmp_t = [current_t] * len(idx)
         self.spikes_t = np.append(self.spikes_t, tmp_t)
-        tmp_i = np.where(idx)[0]
-        self.spikes_i = np.append(self.spikes_i, tmp_i)  
+        self.spikes_i = np.append(self.spikes_i, idx)  
 
     def record_potential(self, current_it, potential):
         self.potential_rec[:, current_it] = potential

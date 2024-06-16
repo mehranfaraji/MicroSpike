@@ -5,9 +5,12 @@ class SRMInhibitory(BaseModel):
     def __init__(
             self, 
             N: int = None,
+            inhibitory_connection: bool = None,
             threshold: float = None,
             reset: float = None,
             refractory: int = None, # refractory is an int number of time steps
+            alpha: float = None,
+            k : int = None,
             tau_m: float = None,
             tau_s: float = None,
             K1: float = None,
@@ -20,10 +23,13 @@ class SRMInhibitory(BaseModel):
         assert N is not None, "Number of neurons must be provided." # TODO: write better check for the class 
 
         self.N = N
+        self.inhibitory_connection = inhibitory_connection
         self.threshold = threshold
         self.reset = reset
         self.refractory = refractory
         self.ref_counter = np.zeros((self.N,1))
+        self.alpha = alpha
+        self.k = k
         self.tau_m = tau_m
         self.tau_s = tau_s
         self.K1 = K1
@@ -31,12 +37,13 @@ class SRMInhibitory(BaseModel):
         self.window_time = window_time
         ## TODO:dt should be given by user in net = Networ()
         self.dt = dt
-        self.last_spike_time = - np.ones((self.N,1)) * np.inf
+        self.last_spike_time = - np.ones((self.N,1)) * 10e10 # * np.inf
+        self.potential = np.zeros((N, 1))
 
         self.monitor = None
     
             
-    def forward(self, spikes_t: np.array, w_tmp: np.array, current_t: float, current_it, i: int):
+    def forward(self, spikes_t: np.array, w_tmp: np.array, current_t: float, i: int):
         """
         i : postsynaptic neuron index
         """
@@ -46,12 +53,15 @@ class SRMInhibitory(BaseModel):
         eps = eps.sum()
         s = current_t + self.dt - self.last_spike_time[i]
         eta = self.eta_kernel(s)
-        potential = eta + eps
+        mu = self.mu_kernel(current_t, i)
+        potential = eta + eps + mu
         return potential
         
-    def inhibitory_pulse(self, i):
-        self.last_spike_time[i]
-
+    def mu_kernel(self, current_t: float, i: int):
+        s = (current_t + self.dt - self.last_spike_time) * (self.last_spike_time > self.last_spike_time[i])
+        mu = - self.alpha * self.threshold * self.eps_kernel(s)
+        mu = np.sum(mu)
+        return mu
     
     
     def check_refractory(self):
@@ -64,6 +74,26 @@ class SRMInhibitory(BaseModel):
         self.ref_counter[idx] = self.refractory
         self.last_spike_time[idx] = current_t
     
+    def get_kwta(self):
+        """
+        implementation of K-winner-take-all algorithm
+        this function will return the index of post-neuron that can spike and has the most potential
+        """
+        if self.inhibitory_connection:
+            idx_bool = self.check_refractory()
+            idx_bool = idx_bool * (self.potential >= self.threshold)
+            # if no neuron can spike, return an empty array
+            if sum(idx_bool) == 0:
+                return np.array([], dtype=np.int32)
+            ## return the index of the neuron that is spiking
+            idx = (idx_bool * self.potential).squeeze(axis=-1).argsort()[-self.k:]
+        else:
+            idx_bool = self.check_refractory()
+            idx_bool = idx_bool * (self.potential >= self.threshold)
+            idx = np.where(idx_bool)[0]
+
+        return idx
+        
     ## TODO: add reset to the network
     def reset_neuron(self,):
         self.t = 0
