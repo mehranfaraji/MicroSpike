@@ -115,7 +115,8 @@ class PatternGenerator:
             indices_window_pattern = indices_window[tmp]
 
             time_window_pattern -= startCPindex * self.patternlength
-            patterns_info[f"pattern_{pattern_i}"] = [time_window_pattern, indices_window_pattern, afferents_in_pattern, afferents_not_in_pattern]
+            info_dic = {'time_window_pattern': time_window_pattern, 'indices_window_pattern': indices_window_pattern, 'afferents_in_pattern': afferents_in_pattern, 'afferents_not_in_pattern': afferents_not_in_pattern}
+            patterns_info[f"pattern_{pattern_i}"] = info_dic
 
         times_final, indices_final = [], []
         for position_index, position_value in enumerate(position_copypaste):
@@ -124,9 +125,13 @@ class PatternGenerator:
                 end_pattern = np.searchsorted(times, (position_index + 1) * self.patternlength)
                 times_final.append(times[start_pattern:end_pattern])
                 indices_final.append(indices[start_pattern:end_pattern])
-                pass
             else:
-                time_window_pattern, indices_window_pattern, afferents_in_pattern, afferents_not_in_pattern = patterns_info[f"pattern_{position_value}"]
+                info_dic = patterns_info[f"pattern_{position_value}"]
+                time_window_pattern = info_dic['time_window_pattern']
+                indices_window_pattern = info_dic['indices_window_pattern']
+                afferents_in_pattern = info_dic['afferents_in_pattern']
+                afferents_not_in_pattern = info_dic['afferents_not_in_pattern']
+                
                 timecopy = np.copy(time_window_pattern)
                 indcopy = np.copy(indices_window_pattern)
                 timecopy += position_index * self.patternlength

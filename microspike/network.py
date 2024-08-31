@@ -33,7 +33,7 @@ class NetworkBase():
     def add_input_train(self, input_train: InputTrain):
         self.input_train = input_train
 
-    def init_records(self,time):
+    def reset_records(self,time):
         # TODO: remove the line below in the future
         # so that we can have multiple net.run() and it considers
         # current time of previous runs!
@@ -41,7 +41,7 @@ class NetworkBase():
         self.current_it = 0
         for layer in self.layers:
             if layer.monitor:
-                layer.monitor.init_records(time)
+                layer.monitor.reset_records(time)
 
     def update_dt(self, obj):
         obj.dt = self.dt
@@ -135,7 +135,7 @@ class Network(NetworkBase):
         time (ms)
         """
         time = int(time * (DEFAULT_DT / self.dt))
-        self.init_records(time)
+        self.reset_records(time)
         ## Check the behaviour of + self.dt on the last loop step
         for it in range(time):
             self.current_it = it

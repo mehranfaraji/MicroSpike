@@ -14,7 +14,7 @@ class Monitor():
         self.N = layer.N
         self.dt = layer.dt
 
-    def init_records(self, time):
+    def reset_records(self, time):
         T = time + 1
         self.potential_rec = np.zeros((self.N, T))
 
