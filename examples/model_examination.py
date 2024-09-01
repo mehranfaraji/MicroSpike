@@ -151,6 +151,8 @@ def update_summary_file(folder_name, filename, simulation_number, num_patterns_l
 
 if __name__ == "__main__":
     import argparse
+    import shutil
+    import os
 
     parser = argparse.ArgumentParser(description="Run model examination")
     parser.add_argument("--folder_name", type=str, required=True, help="Folder name for saving results")
@@ -197,6 +199,8 @@ if __name__ == "__main__":
         update_summary_file(folder_name, filename, i, num_patterns_learned_by_at_least_one_neuron, num_successful_neurons)
         
         print(f"-- Simulation {i} completed --")
-        # # Example of reading the results
-        # loaded_results = read_examination_results(folder_name, current_filename)
-        # print("Loaded results:", loaded_results)
+
+    # Zip the folder and delete the original
+    shutil.make_archive(folder_name, 'zip', folder_name)
+    shutil.rmtree(folder_name)
+    print(f"Folder {folder_name} has been zipped and deleted.")

@@ -32,7 +32,11 @@ def investigate_potential(monitor, dt, position_copypaste, save_path=None):
     """
     num_neurons = monitor.potential_rec.shape[0]
     patternlength = 0.050
-    colors = plt.cm.Set1(np.linspace(0, 1, 7))
+    
+    # Generate a larger set of distinct colors using HSV color space
+    num_patterns = len(np.unique(position_copypaste)) - 1  # Subtract 1 to exclude 0
+    hue_values = np.linspace(0, 1, num_patterns, endpoint=False)
+    colors = [plt.cm.hsv(h) for h in hue_values]
 
     def update_plot(neuron_number, start_time, end_time):
         start_time = float(start_time)
