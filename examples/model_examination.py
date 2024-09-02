@@ -182,6 +182,11 @@ if __name__ == "__main__":
     for i in range(1, num_simulation+1):
 
         current_filename = filename + f"-simulation{i}"
+        full_path = os.path.join(folder_name, f'{current_filename}.json')
+        
+        if os.path.exists(full_path):
+            print(f"Simulation {i} already exists. Skipping...")
+            continue
 
         ## Model Examination
         input_train, model, synapse, monitor, times, indices, position_copypaste, patterns_info, timing_pattern = generate_data_train_model(P, N, M, time, w_max, w_min, A_pre, A_post, tau_pre, tau_post, approximate,
