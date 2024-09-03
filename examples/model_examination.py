@@ -37,8 +37,10 @@ false_alarm_rate_threshold = 1 # Hz
 pattern_duration = 0.050 # second
 
 def save_examination_results(folder_name, filename, input_train, model, synapse, monitor, times, indices, position_copypaste, patterns_info, timing_pattern):
-    # Create the specified folder if it doesn't exist
+    # Create the main folder and additional_data subfolder
     os.makedirs(folder_name, exist_ok=True)
+    additional_data_folder = folder_name + '_additional_data'
+    os.makedirs(additional_data_folder, exist_ok=True)
 
     # Prepare the data to be saved
     data = {
@@ -87,15 +89,16 @@ def save_examination_results(folder_name, filename, input_train, model, synapse,
         'Timestamp': datetime.now().isoformat()
     }
 
-    # Save the data to a JSON file
+    # Save the data to a JSON file in the main folder
     full_path = os.path.join(folder_name, f'{filename}.json')
     with open(full_path, 'w') as f:
         json.dump(data, f, indent=4)
 
-    # Save additional data using save_all_data function
-    save_all_data(input_train, model, synapse, monitor, times, indices, position_copypaste, patterns_info, timing_pattern, os.path.join(folder_name, f'{filename}_additional_data.pkl'))
+    # Save additional data using save_all_data function in the additional_data subfolder
+    save_all_data(input_train, model, synapse, monitor, times, indices, position_copypaste, patterns_info, timing_pattern, os.path.join(additional_data_folder, f'{filename}_additional_data.pkl'))
 
     print(f"Examination results saved to {full_path}")
+    print(f"Additional data saved to {os.path.join(additional_data_folder, f'{filename}_additional_data.pkl')}")
 
 def read_examination_results(folder_name, filename):
     full_path = os.path.join(folder_name, f'{filename}.json')
@@ -209,3 +212,9 @@ if __name__ == "__main__":
     shutil.make_archive(folder_name, 'zip', folder_name)
     shutil.rmtree(folder_name)
     print(f"Folder {folder_name} has been zipped and deleted.")
+
+    # Zip the additional_data folder and delete the original
+    additional_data_folder = folder_name + '_additional_data'
+    shutil.make_archive(additional_data_folder, 'zip', additional_data_folder)
+    shutil.rmtree(additional_data_folder)
+    print(f"Folder {additional_data_folder} has been zipped and deleted.")
