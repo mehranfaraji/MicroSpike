@@ -113,7 +113,7 @@ def check_neuron_status(N: int, criterion_info: Dict[str, Dict[int, int]], patte
             
     return neurons_stats, pattern_stats
 
-def get_successful_neurons_successful_patterns(pattern_stats: Dict[str, int], neurons_stats: Dict[str, namedtuple], P: int, N: int) -> Tuple[int, int]:
+def get_neurons_stats_pattern_stats(pattern_stats: Dict[str, int], neurons_stats: Dict[str, namedtuple], P: int, N: int) -> Tuple[int, int]:
     """
     Calculate the number of successful patterns and successful neurons.
 
@@ -140,11 +140,17 @@ def get_successful_neurons_successful_patterns(pattern_stats: Dict[str, int], ne
     """
     num_patterns_learned_by_at_least_one_neuron = 0
     num_successful_neurons = 0
+    num_dead_neurons = 0
+    num_unsuccessful_neurons = 0
     for pattern_number in range(1, P+1):
         if f'pattern_{pattern_number}' in pattern_stats:
             num_patterns_learned_by_at_least_one_neuron += 1
     for neuron_number in range(1, N+1):
         if neurons_stats[f'neuron_{neuron_number}'].status == "successful":
             num_successful_neurons += 1
+        elif neurons_stats[f'neuron_{neuron_number}'].status == "dead":
+            num_dead_neurons += 1
+        elif neurons_stats[f'neuron_{neuron_number}'].status == "unsuccessful":
+            num_unsuccessful_neurons += 1
 
-    return num_patterns_learned_by_at_least_one_neuron, num_successful_neurons
+    return num_patterns_learned_by_at_least_one_neuron, num_successful_neurons, num_dead_neurons, num_unsuccessful_neurons

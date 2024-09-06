@@ -1,5 +1,5 @@
 from microspike.criterion import get_pattern_repetition_number_and_spike_statistics, check_neuron_status
-from microspike.criterion import get_successful_neurons_successful_patterns
+from microspike.criterion import get_neurons_stats_pattern_stats
 from microspike.utils import generate_data_train_model, save_all_data, load_all_data
 import os
 import numpy as np
@@ -101,6 +101,8 @@ def save_examination_results(folder_name, filename, input_train, model, synapse,
     print(f"Additional data saved to {os.path.join(additional_data_folder, f'{filename}_additional_data.pkl')}")
 
 def read_examination_results(folder_name, filename):
+    if filename.endswith('.json'):
+        filename = filename[:-5]
     full_path = os.path.join(folder_name, f'{filename}.json')
     with open(full_path, 'r') as f:
         data = json.load(f)
@@ -140,17 +142,19 @@ def read_examination_results_additional_data(folder_name, filename):
         'timing_pattern': timing_pattern
     }
 
-def update_summary_file(folder_name, filename, simulation_number, num_patterns_learned, num_successful_neurons):
+def update_summary_file(folder_name, filename, simulation_number, num_patterns_learned, num_successful_neurons,
+                        num_dead_neurons, num_unsuccessful_neurons):
     summary_file_path = os.path.join(folder_name, f'{filename}.txt')
     
     # Check if the file exists, if not create it with the header
     if not os.path.exists(summary_file_path):
         with open(summary_file_path, 'w') as f:
-            f.write("simulation number, number of patterns learned by at least one neuron, number of successful neurons\n")
+            f.write("simulation number, number of patterns learned by at least one neuron, number of successful neurons, number of dead neurons, number of unsuccessful neurons\n")
     
     # Append the new data
     with open(summary_file_path, 'a') as f:
-        f.write(f"{simulation_number}, {num_patterns_learned}, {num_successful_neurons}\n")
+        f.write(f"{simulation_number}, {num_patterns_learned}, {num_successful_neurons}, {num_dead_neurons}, {num_unsuccessful_neurons}\n")
+
 
 if __name__ == "__main__":
     import argparse
@@ -167,10 +171,12 @@ if __name__ == "__main__":
     parser.add_argument("--time", type=float, required=True, help="Simulation time in milliseconds")
     parser.add_argument("--inference_starting_time", type=float, required=True, help="Start time of inference in seconds")
     parser.add_argument("--inference_ending_time", type=float, required=True, help="End time of inference in seconds")
+    parser.add_argument("--no-zip", action="store_false", dest="no_zip", help="Do not save the folder as a zip file")
     args = parser.parse_args()
     folder_name = args.folder_name
     filename = args.filename
     num_simulation = args.num_simulation
+    no_zip = args.no_zip
     # Network Hyperparameters
     P = args.P
     N = args.N
@@ -198,23 +204,25 @@ if __name__ == "__main__":
 
         pattern_repetition_number, criterion_info = get_pattern_repetition_number_and_spike_statistics(monitor, position_copypaste, inference_starting_time, inference_ending_time, pattern_duration, P)
         neurons_stats, pattern_stats = check_neuron_status(N, criterion_info, pattern_repetition_number, hit_rate_threshold, false_alarm_rate_threshold, inference_starting_time, inference_ending_time)
-        num_patterns_learned_by_at_least_one_neuron, num_successful_neurons = get_successful_neurons_successful_patterns(pattern_stats, neurons_stats, P, N)
+        num_patterns_learned_by_at_least_one_neuron, num_successful_neurons, num_dead_neurons, num_unsuccessful_neurons = get_neurons_stats_pattern_stats(pattern_stats, neurons_stats, P, N)
 
         # Save the examination results
         save_examination_results(folder_name, current_filename, input_train, model, synapse, monitor, times, indices, position_copypaste, patterns_info, timing_pattern)
 
         # Update the summary file
-        update_summary_file(folder_name, filename, i, num_patterns_learned_by_at_least_one_neuron, num_successful_neurons)
+        update_summary_file(folder_name, filename, i, num_patterns_learned_by_at_least_one_neuron, num_successful_neurons, num_dead_neurons, num_unsuccessful_neurons)
         
         print(f"-- Simulation {i} completed --")
 
-    # Zip the folder and delete the original
-    shutil.make_archive(folder_name, 'zip', folder_name)
-    shutil.rmtree(folder_name)
-    print(f"Folder {folder_name} has been zipped and deleted.")
+    print(f"\n {no_zip}\n")
+    if no_zip:
+        # Zip the folder and delete the original
+        shutil.make_archive(folder_name, 'zip', folder_name)
+        shutil.rmtree(folder_name)
+        print(f"Folder {folder_name} has been zipped and deleted.")
 
-    # Zip the additional_data folder and delete the original
-    additional_data_folder = folder_name + '_additional_data'
-    shutil.make_archive(additional_data_folder, 'zip', additional_data_folder)
-    shutil.rmtree(additional_data_folder)
-    print(f"Folder {additional_data_folder} has been zipped and deleted.")
+        # Zip the additional_data folder and delete the original
+        additional_data_folder = folder_name + '_additional_data'
+        shutil.make_archive(additional_data_folder, 'zip', additional_data_folder)
+        shutil.rmtree(additional_data_folder)
+        print(f"Folder {additional_data_folder} has been zipped and deleted.")
