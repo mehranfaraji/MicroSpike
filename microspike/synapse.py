@@ -117,3 +117,47 @@ class Synapse():
     # def update_ti_tj_test(self, idx_pre, idx_post, current_t):
     #     self.t_i[:, idx_post.squeeze()] = current_t
     #     self.t_j[idx_pre, :] = current_t
+
+    def init_weight(self, M, N):
+        """
+        Creates a weight matrix of shape (M, N) with elements drawn from a uniform distribution (0, 1).
+
+        Args:
+            M: Number of presynaptic neurons (rows in the weight matrix).
+            N: Number of postsynaptic neurons (columns in the weight matrix).
+
+        Returns:
+            A weight matrix of shape (M, N) with random values between 0 (inclusive) and 1 (exclusive).
+        """
+        weight = np.random.uniform(low=0.0, high=1.0, size=(M, N))
+        return weight
+
+    def add_new_neurons(self,num_new_neurons):
+        num_original_neurons = self.w.shape[1]
+        new_neurons_weight = self.init_weight(M=2000, N=num_new_neurons)
+        total_neurons = num_original_neurons + num_new_neurons
+        
+        self.w = np.concatenate((self.w, new_neurons_weight), axis=1)
+
+        self.A_post = np.ones((total_neurons,)) * self.A_post
+        self.A_post[:num_original_neurons] = 0
+        self.A_pre = np.ones((total_neurons,)) * self.A_pre
+        self.A_pre[:num_original_neurons] = 0
+        
+        self.a_pre = np.zeros_like(self.w)
+        self.a_post = np.zeros_like(self.w)
+
+        self.on_post_a = self.on_post_a_new_neurons
+    
+    def on_post_a_new_neurons(self, idx):
+        """
+        idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
+        """
+        try:
+            if self.approximate:
+                self.a_post[:, idx] = self.A_post[idx]
+            else: self.a_post[:, idx] += self.A_post[idx]
+        except Exception as e:
+            print(idx, type(idx))
+            print(e)
+            pass

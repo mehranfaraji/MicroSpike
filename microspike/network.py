@@ -51,6 +51,7 @@ class NetworkBase():
         this function will return the index of post-neuron that can spike and has the most potential
         """
         idx_spike = layer.get_kwta()
+
         return idx_spike
     
     def get_idx_pre_spiking(self): 

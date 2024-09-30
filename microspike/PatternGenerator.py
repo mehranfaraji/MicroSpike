@@ -53,7 +53,7 @@ class PatternGenerator:
                 warnings.warn("Warning: max_change_speed != max_rate / max_time_wo_spike", UserWarning)
         self.total_pattern_freq = total_pattern_freq
         self.number_pattern = number_pattern
-    def make_input(self):
+    def _make_input(self):
         spiketimes, indices = [], []
         for n in range(self.number_neurons): 
             st = np.array(make_single_train(self.min_rate, self.max_rate, self.max_time_wo_spike,
@@ -71,7 +71,7 @@ class PatternGenerator:
         return spiketimes, indices
 
 
-    def make_pattern_presentation_array(self):
+    def _make_pattern_presentation_array(self):
         runduration1 = min(self.runduration, 150)
         if self.total_pattern_freq == 0.5 and self.number_pattern == 1:
             position_copypaste = np.array([0,1] * int(runduration1 * self.total_pattern_freq / self.patternlength), dtype=int)
@@ -95,9 +95,8 @@ class PatternGenerator:
                         elif random_index == len(position_copypaste) - 1 and position_copypaste[random_index - 1] != pattern_i:
                             position_copypaste[random_index] = pattern_i
             return position_copypaste
-        
 
-    def copy_and_paste_jittered_pattern(self, times, indices, position_copypaste):
+    def _create_patterns_info(self, times, indices, position_copypaste):
         patterns_info = {}
         for pattern_i in range(1, self.number_pattern + 1):
             startCPindex = np.where(position_copypaste == pattern_i)[0][0]
@@ -117,7 +116,9 @@ class PatternGenerator:
             time_window_pattern -= startCPindex * self.patternlength
             info_dic = {'time_window_pattern': time_window_pattern, 'indices_window_pattern': indices_window_pattern, 'afferents_in_pattern': afferents_in_pattern, 'afferents_not_in_pattern': afferents_not_in_pattern}
             patterns_info[f"pattern_{pattern_i}"] = info_dic
-
+        return patterns_info
+    
+    def _create_final_times_indices(self, times, indices, position_copypaste, patterns_info):
         times_final, indices_final = [], []
         for position_index, position_value in enumerate(position_copypaste):
             if position_value == 0:
@@ -129,7 +130,6 @@ class PatternGenerator:
                 info_dic = patterns_info[f"pattern_{position_value}"]
                 time_window_pattern = info_dic['time_window_pattern']
                 indices_window_pattern = info_dic['indices_window_pattern']
-                afferents_in_pattern = info_dic['afferents_in_pattern']
                 afferents_not_in_pattern = info_dic['afferents_not_in_pattern']
                 
                 timecopy = np.copy(time_window_pattern)
@@ -150,15 +150,6 @@ class PatternGenerator:
                 times_final.append(time_window_not_in_pattern)
                 indices_final.append(indices_window_not_in_pattern)
 
-                s1 = set(indcopy)
-                s2 = set(indices_window_not_in_pattern)
-                s3 = s1.isdisjoint(s2)
-                if not s3:
-                    print("Not disjoint")
-                    print(s1)
-                    print(s2)
-                    print("\n\n")
-
         times_final = np.hstack(times_final)
         indices_final = np.hstack(indices_final)
         sortarray = times_final.argsort()
@@ -166,23 +157,76 @@ class PatternGenerator:
         times_final = times_final[sortarray]
         return times_final, indices_final, patterns_info
 
+    def _copy_and_paste_jittered_pattern(self, times, indices, position_copypaste):
+        
+        patterns_info = self._create_patterns_info(times, indices, position_copypaste)
 
-    def triple_input_runtime(self, times, indices):
+        return self._create_final_times_indices(times, indices, position_copypaste, patterns_info)
+
+
+    def _triple_input_runtime(self, times, indices):
         # To shorten time spent on creating input, 150s input is tripled to give 450s
         times = np.concatenate((times, np.round(times + 150, 3), np.round(times + 300, 3)))
         indices = np.concatenate((indices, indices, indices))
         return times, indices
     
     def generate(self):
-        times, indices = self.make_input()
-        position_copypaste = self.make_pattern_presentation_array()
+        times, indices = self._make_input()
+        position_copypaste = self._make_pattern_presentation_array()
                                     
-        times, indices, patterns_info = self.copy_and_paste_jittered_pattern(times, indices, position_copypaste)
+        times, indices, patterns_info = self._copy_and_paste_jittered_pattern(times, indices, position_copypaste)
         if self.tripling and self.runduration > 300:
-            times, indices = self.triple_input_runtime(times, indices)
+            times, indices = self._triple_input_runtime(times, indices)
             position_copypaste = np.concatenate((position_copypaste, position_copypaste, position_copypaste))
         timing_pattern = np.where(position_copypaste > 0)[0] * self.patternlength
 
         indices = indices.astype(int)
 
         return times, indices, position_copypaste, patterns_info, timing_pattern
+    
+    def _update_patterns_info(self,times, indices, position_copypaste, patterns_info):
+        self.number_pattern += 1
+        ## select a random noise from position_copypaste
+        noise_indices = np.where(position_copypaste == 0)[0]
+        startCPindex = np.random.choice(noise_indices)
+        start_idx = np.searchsorted(times, startCPindex * self.patternlength)
+        end_idx = np.searchsorted(times, (startCPindex + 1) * self.patternlength)
+        permuted_indices = np.random.permutation(self.number_neurons)
+        length = int(self.number_neurons * self.portion_involved_pattern)
+        afferents_in_pattern = permuted_indices[:length]
+        afferents_not_in_pattern = permuted_indices[length:]
+
+        time_window = times[start_idx: end_idx]
+        indices_window = indices[start_idx: end_idx]
+        tmp = np.isin(indices_window, afferents_in_pattern)
+        time_window_pattern = time_window[tmp]
+        indices_window_pattern = indices_window[tmp]
+
+        time_window_pattern -= startCPindex * self.patternlength
+        
+        info_dic = {'time_window_pattern': time_window_pattern, 'indices_window_pattern': indices_window_pattern, 'afferents_in_pattern': afferents_in_pattern, 'afferents_not_in_pattern': afferents_not_in_pattern}
+        patterns_info[f"pattern_{self.number_pattern}"] = info_dic
+        return patterns_info
+    
+    def _update_position_copypaste(self, position_copypaste):
+        num_new_pattern_occurances = len(np.where(position_copypaste == 1)[0])
+        noise_indices = np.where(position_copypaste == 0)[0]
+        counter = 0
+        while counter < num_new_pattern_occurances:
+            random_index = np.random.choice(noise_indices)
+            if position_copypaste[random_index] == 0:
+                position_copypaste[random_index] = self.number_pattern
+                counter += 1
+
+        return position_copypaste
+
+    
+    def add_new_pattern(self, times, indices, position_copypaste, patterns_info):
+        position_copypaste_tmp = np.copy(position_copypaste)
+        patterns_info = self._update_patterns_info(times, indices, position_copypaste_tmp, patterns_info)
+        position_copypaste_tmp = self._update_position_copypaste(position_copypaste_tmp)
+
+        times_final, indices_final, patterns_info = self._create_final_times_indices(times, indices, position_copypaste_tmp, patterns_info)
+        
+        return times_final, indices_final, position_copypaste_tmp, patterns_info
+        

@@ -4,9 +4,21 @@ from ipywidgets import widgets
 from IPython.display import display
 from microspike import PatternGenerator, InputTrain, SRMInhibitory, Synapse, Monitor, Network
 import pickle
+import os, json
 
 
-def investigate_potential(monitor, dt, position_copypaste, save_path=None):
+def load_hyperparameters(filename):
+    directory = '../hyperparams_directory'
+    file_path = os.path.join(directory, filename)
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            hyperparams = json.load(f)
+        return hyperparams
+    else:
+        print(f'{file_path} not found')
+        return None
+
+def investigate_potential(monitor, dt, position_copypaste):
     """
     Visualize and interact with the membrane potential of neurons over time.
 
@@ -22,8 +34,6 @@ def investigate_potential(monitor, dt, position_copypaste, save_path=None):
         Time step of the simulation.
     position_copypaste : array-like
         Array indicating the pattern positions.
-    save_path : str, optional
-        Path to save the generated plot. If None, the plot is not saved.
 
     Returns:
     --------
@@ -43,7 +53,7 @@ def investigate_potential(monitor, dt, position_copypaste, save_path=None):
         end_time = float(end_time)
         time_axis = np.arange(start_time, end_time, dt)
         
-        fig, ax = plt.subplots(figsize=(15, 5))
+        fig, ax = plt.subplots(figsize=(15, 4))
         fig.patch.set_facecolor('#F0F0F0')
         ax.set_facecolor('#FFFFFF')
         
@@ -78,8 +88,7 @@ def investigate_potential(monitor, dt, position_copypaste, save_path=None):
         
         plt.tight_layout()
         
-        if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
         plt.show()
 
     # Create widgets

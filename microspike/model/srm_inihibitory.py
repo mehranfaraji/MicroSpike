@@ -38,8 +38,8 @@ class SRMInhibitory(BaseModel):
         ## TODO:dt should be given by user in net = Networ()
         self.dt = dt
         self.last_spike_time = - np.ones((self.N,1)) * 10e10 # * np.inf
-        self.potential = np.zeros((N, 1))
-
+        self.potential = np.zeros((self.N, 1))
+        self.inhibitory_weights = np.ones((self.N, self.N))
         self.monitor = None
     
             
@@ -59,12 +59,16 @@ class SRMInhibitory(BaseModel):
         
     def mu_kernel(self, current_t: float, i: int):
         s = (current_t + self.dt - self.last_spike_time) * (self.last_spike_time > self.last_spike_time[i])
+        s = s * self.inhibitory_weights[:, i:i+1]
         mu = - self.alpha * self.threshold * self.eps_kernel(s)
         mu = np.sum(mu)
         return mu
     
     
     def check_refractory(self):
+        """
+        returns the indices of the neurons that are not at refractory time.
+        """
         idx = self.ref_counter > 0
         self.ref_counter[idx] -= 1
         # self.ref_counter[idx] = self.ref_counter[idx]
@@ -123,3 +127,52 @@ class SRMInhibitory(BaseModel):
         positive_pulse = self.K1 * np.exp(-s/self.tau_m)
         negative_spike_afterpotential = self.K2 * (np.exp(-s/self.tau_m) - np.exp(-s/self.tau_s))
         return self.threshold * (positive_pulse - negative_spike_afterpotential)
+    
+    def add_new_neurons(self, num_new_neurons):
+        self.N += num_new_neurons
+        self.num_new_neurons = num_new_neurons
+        ## attributes that need update
+        self.reset_internal_params()
+        ## change how kwta algorithm works. (it prioritizes spiking of original neurons over new ones)
+        self.get_kwta = self.get_kwta_new_neurons
+        
+    def reset_internal_params(self):
+        self.ref_counter = np.zeros((self.N,1))
+        self.last_spike_time = - np.ones((self.N,1)) * 10e10
+        self.potential = np.zeros((self.N,1))
+        self.inhibitory_weights = np.ones((self.N, self.N))
+        ## new neurons cannot send inhibitory signals to the original neurons
+        self.inhibitory_weights[self.N - self.num_new_neurons: , :self.N - self.num_new_neurons] = 0
+
+    def get_kwta_new_neurons(self):
+        """
+        implementation of K-winner-take-all algorithm
+        this function will return the index of post-neuron that can spike and has the most potential
+        """
+        if self.inhibitory_connection:
+            idx_bool = self.check_refractory()
+            idx_bool = idx_bool * (self.potential >= self.threshold)
+            # if no neuron can spike, return an empty array
+            if sum(idx_bool) == 0:
+                return np.array([], dtype=np.int32)
+            #####################################################################################
+            # ## if at least one of the original neurons can spike
+            # ## since we don't want to train it anymore then we will return empty array
+            # elif sum(idx_bool[:self.N - self.num_new_neurons]) > 0:
+            #     return np.array([], dtype=np.int32 )
+            #####################################################################################
+            ## return the index of the neuron that is spiking
+            ## if at least one of original neurons can spike 
+            elif sum(idx_bool[:self.N - self.num_new_neurons]) > 0:
+                idx = (idx_bool[:self.N - self.num_new_neurons] * self.potential[:self.N - self.num_new_neurons]).squeeze(axis=-1).argsort()[-self.k:]
+                return idx
+            
+            ## if no original neurons can spike
+            else:
+                idx = (idx_bool * self.potential).squeeze(axis=-1).argsort()[-self.k:]
+        else:
+            idx_bool = self.check_refractory()
+            idx_bool = idx_bool * (self.potential >= self.threshold)
+            idx = np.where(idx_bool)[0]
+
+        return idx
