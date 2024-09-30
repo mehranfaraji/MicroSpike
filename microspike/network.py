@@ -70,7 +70,7 @@ class NetworkBase():
         if monitor:
             monitor.record_spike(self.current_t, idx_post)
             if monitor.potential_rec.shape[0] == 1:
-                if idx_post.squeeze() == True:
+                if len(idx_post) > 0:
                     monitor.potential_rec[0, self.current_it] = layer.eta_kernel(0.0)
             else:
                 monitor.potential_rec[idx_post.squeeze(), self.current_it] = layer.eta_kernel(0.0)
