@@ -28,3 +28,19 @@ class Monitor():
 
     def record_potential(self, current_it, potential):
         self.potential_rec[:, current_it] = potential
+
+    def get_latencies(self,position_copypaste, patternlength):
+        latencies = [[] for _ in range(self.N)]
+
+        for spike_time, spike_index in zip(self.spikes_t, self.spikes_i):
+            indx_position = int(spike_time / patternlength)
+            is_pattern = position_copypaste[indx_position]
+
+            latency = np.round(spike_time - (indx_position) * patternlength, decimals=3).item()
+            latency = latency * is_pattern
+            latencies[int(spike_index)].append(latency)
+        
+        latencies = [np.array(lat_list) * 1000 for lat_list in latencies]
+
+
+        return latencies

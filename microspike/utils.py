@@ -7,16 +7,45 @@ import pickle
 import os, json
 
 
+# def load_hyperparameters(filename):
+#     directory = 'hyperparams_director'
+#     file_path = os.path.join(directory, filename)
+#     if os.path.exists(file_path):
+#         with open(file_path, 'r') as f:
+#             hyperparams = json.load(f)
+#         return hyperparams
+#     else:
+#         print(f'{file_path} not found')
+#         return None
+
 def load_hyperparameters(filename):
-    directory = '../hyperparams_directory'
-    file_path = os.path.join(directory, filename)
-    if os.path.exists(file_path):
+    """
+    Load hyperparameters from a JSON file located in the 'hyperparams_directory'.
+    
+    Args:
+        filename (str): The name of the JSON file containing hyperparameters.
+
+    Returns:
+        dict: The loaded hyperparameters as a dictionary.
+    
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+        ValueError: If the file is not a valid JSON file.
+    """
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    hyperparams_dir = os.path.join(current_dir, '..', 'hyperparams_directory')
+
+    file_path = os.path.join(hyperparams_dir, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File {file_path} not found.")
+    
+    try:
         with open(file_path, 'r') as f:
             hyperparams = json.load(f)
         return hyperparams
-    else:
-        print(f'{file_path} not found')
-        return None
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Error reading JSON file {file_path}: {e}")
 
 def investigate_potential(monitor, dt, position_copypaste):
     """
