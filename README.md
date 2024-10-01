@@ -36,6 +36,10 @@ Here is a simple example of using MicroSpike to set up a basic network:
 ```python
 from microspike import InputTrain, Synapse, SRM, Monitor, Network, PatternGenerator
 
+P = 1 # number of patterns
+N = 1 # number of postsynaptic neurons
+M = 2000 # number of presynaptic neurons
+time = 450 # seconds
 # Define hyperparameters
 threshold = 500
 reset = 0
@@ -54,12 +58,12 @@ tau_pre = 0.0168
 tau_post = 0.0337
 
 # Generate input spike train
-generator = PatternGenerator(number_pattern=2, number_neurons=100, total_pattern_freq=1/3)
+generator = PatternGenerator(number_pattern=P, number_neurons=M, total_pattern_freq=1/3)
 times, indices, *_ = generator.generate()
 
 # Initialize components
 input_train = InputTrain(times, indices)
-model = SRM(N=100, threshold=threshold, reset=reset, tau_m=tau_m, tau_s=tau_s, K1=K1, K2=K2, window_time=window_time)
+model = SRM(N=N, threshold=threshold, reset=reset, tau_m=tau_m, tau_s=tau_s, K1=K1, K2=K2, window_time=window_time)
 synapse = Synapse(w_max=w_max, A_pre=A_pre, A_post=A_post, tau_pre=tau_pre, tau_post=tau_post)
 monitor = Monitor(model)
 net = Network()
@@ -68,7 +72,7 @@ net = Network()
 net.add_input_train(input_train)
 net.add_layer(model)
 net.add_synapse(synapse)
-net.run(time=1.0)  # Run for 1 second
+net.run(time=time)
 ```
 
 ## Experiments
