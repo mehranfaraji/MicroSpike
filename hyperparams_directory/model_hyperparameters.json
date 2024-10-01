@@ -1,0 +1,13 @@
+{
+    "inhibitory_connection": true,
+    "threshold": 500,
+    "reset": 0,
+    "refractory": 1,
+    "alpha": 0.25,
+    "k": 1,
+    "tau_m": 0.01,
+    "tau_s": 0.0025,
+    "K1": 2,
+    "K2": 4,
+    "window_time": 0.07
+}
