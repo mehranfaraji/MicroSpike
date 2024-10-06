@@ -4,3 +4,4 @@ from .monitor import Monitor
 from .network import NetworkBase, Network
 from .synapse import Synapse
 from .PatternGenerator import PatternGenerator
+from .utils import *

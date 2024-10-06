@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from numba import jit
 import warnings
 
@@ -182,6 +183,9 @@ class PatternGenerator:
 
         indices = indices.astype(int)
 
+        times = torch.tensor(times)
+        indices = torch.tensor(indices)
+
         return times, indices, position_copypaste, patterns_info, timing_pattern
     
     def _update_patterns_info(self,times, indices, position_copypaste, patterns_info):
@@ -228,5 +232,7 @@ class PatternGenerator:
 
         times_final, indices_final, patterns_info = self._create_final_times_indices(times, indices, position_copypaste_tmp, patterns_info)
         
+        times_final = torch.tensor(times_final)
+        indices_final = torch.tensor(indices_final)
         return times_final, indices_final, position_copypaste_tmp, patterns_info
         

@@ -1,80 +1,77 @@
-import numpy as np
-class Synapse():
+# import numpy as np
+import torch
+from typing import List, Optional
+class Synapse:
+    """
+    Represents a synapse in the network, with weight update mechanisms for STDP.
+
+    Attributes:
+        w (torch.Tensor): Synaptic weight matrix.
+        w_max (float): Maximum synaptic weight.
+        w_min (float): Minimum synaptic weight.
+        A_pre (float): Learning rate for pre-synaptic activity.
+        A_post (float): Learning rate for post-synaptic activity.
+        tau_pre (float): Time constant for pre-synaptic activity decay.
+        tau_post (float): Time constant for post-synaptic activity decay.
+        approximate (bool): Whether to use nearest spike approximation.
+        dt (float): Time step for updates.
+    """
     def __init__(
-                self,
-                w: np.array,
-                w_max: float,
-                w_min: float,
-                A_pre: float,
-                A_post: float,
-                tau_pre: float,
-                tau_post: float,
-                approximate: bool = False,
-                dt : float = None
-                ) -> None:
-        self.w = np.copy(w)
+            self,
+            w: torch.Tensor,
+            w_max: float,
+            w_min: float,
+            A_pre: float,
+            A_post: float,
+            tau_pre: float,
+            tau_post: float,
+            approximate: bool = False,
+            dt: float = None,
+            device: Optional[str]=None,
+        ) -> None:
+        self.device = device
+        if not self.device:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        self.w = w.clone().to(self.device)
         self.w_max = w_max
         self.w_min = w_min
         self.A_pre = A_pre
         self.A_post = A_post
         self.tau_pre = tau_pre
         self.tau_post = tau_post
-        ## if True do nearest spike approximation, else consider all the contributions of the previous presynaptic spikes
         self.approximate = approximate
-        
-        self.a_pre = np.zeros_like(self.w)
-        self.a_post = np.zeros_like(self.w)
+        self.a_pre = torch.zeros_like(self.w, device=self.device)
+        self.a_post = torch.zeros_like(self.w, device=self.device)
         self.dt = dt
 
-        ### for test:
-        self.t_j = - np.ones_like(self.w) * np.inf # for presynaptic neurons
-        self.t_i = - np.ones_like(self.w) * np.inf # for postsynaptic neurons
-        ########################################################################
-        ### for test:
-        self.w_log = np.zeros((self.w.shape[0], 100))
+        self.t_j = - torch.ones_like(self.w, device=self.device) * float('inf')
+        self.t_i = - torch.ones_like(self.w, device=self.device) * float('inf')
+        self.w_log = torch.zeros((self.w.shape[0], 100), device=self.device)
 
-        if self.A_pre < 0:
-            raise ValueError("A_pre should be > 0")
-        if self.A_post > 0:
-            raise ValueError("A_post should be < 0")
-        if len(self.w.shape) < 2:
-            raise ValueError("w should be 2D")
-    
-    def get_w_tmp(self, spikes_i: np.array, i):
-        """
-        spikes_i contains only the correct window of spikes_i
-        """
-        return self.w[spikes_i, i].squeeze().T
+    def get_w_tmp(self, spikes_i: torch.Tensor, i: int) -> torch.Tensor:
+        """Returns the temporary weights for the given pre-synaptic neurons and post-synaptic neuron index."""
+        return self.w[spikes_i, i].squeeze()
 
-    def on_pre_w(self,idx):
-        """
-        idx is the index of presynaptic neurons that spiked at the current time and now increasing their a_pre,
-        idx is a python list
-        """
-        self.w[idx, :] = np.clip(self.w[idx, :] + self.a_post[idx, :], self.w_min, self.w_max)
+    def on_pre_w(self, idx: List[int]) -> None:
+        """Updates synaptic weights for pre-synaptic spikes."""
+        self.w[idx, :] = torch.clamp(self.w[idx, :] + self.a_post[idx, :], self.w_min, self.w_max)
         self.a_post[idx, :] = 0.
 
-    def on_post_w(self, idx):
-        """
-        idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
-        """
-        self.w[:, idx] = np.clip(self.w[:, idx] + self.a_pre[:, idx], self.w_min, self.w_max)
+    def on_post_w(self, idx: List[int]) -> None:
+        """Updates synaptic weights for post-synaptic spikes."""
+        self.w[:, idx] = torch.clamp(self.w[:, idx] + self.a_pre[:, idx], self.w_min, self.w_max)
         self.a_pre[:, idx] = 0.
 
-
-    def on_pre_a(self, idx):
-        """
-        idx is the index of presynaptic neurons that spiked at the current time and now increasing their a_pre,
-        idx is a python list
-        """
+    def on_pre_a(self, idx: List[int]) -> None:
+        """Updates pre-synaptic eligibility traces for spikes."""
         if self.approximate:
             self.a_pre[idx, :] = self.A_pre
-        else: self.a_pre[idx, :] += self.A_pre
-        
-    def on_post_a(self, idx):
-        """
-        idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
-        """
+        else:
+            self.a_pre[idx, :] += self.A_pre
+
+    def on_post_a(self, idx: List[int]) -> None:
+        """Updates post-synaptic eligibility traces for"""
         if self.approximate:
             self.a_post[:, idx] = self.A_post
         else: self.a_post[:, idx] += self.A_post
@@ -92,6 +89,50 @@ class Synapse():
         self.on_pre_a(idx_pre_spiking)
         # synapses.update_ti_tj_test(idx_pre=spikes_i[idx_left:idx_right], idx_post=idx_spike, current_t=self.current_t)
         self.update_a()
+
+    def init_weight(self, M, N):
+        """
+        Creates a weight matrix of shape (M, N) with elements drawn from a uniform distribution (0, 1).
+
+        Args:
+            M: Number of presynaptic neurons (rows in the weight matrix).
+            N: Number of postsynaptic neurons (columns in the weight matrix).
+
+        Returns:
+            A weight matrix of shape (M, N) with random values between 0 (inclusive) and 1 (exclusive).
+        """
+        weight = torch.random.uniform(low=0.0, high=1.0, size=(M, N))
+        return weight
+
+    def add_new_neurons(self,num_new_neurons):
+        num_original_neurons = self.w.shape[1]
+        new_neurons_weight = self.init_weight(M=2000, N=num_new_neurons)
+        total_neurons = num_original_neurons + num_new_neurons
+        
+        self.w = torch.concatenate((self.w, new_neurons_weight), axis=1)
+
+        self.A_post = torch.ones((total_neurons,)) * self.A_post
+        self.A_post[:num_original_neurons] = 0
+        self.A_pre = torch.ones((total_neurons,)) * self.A_pre
+        self.A_pre[:num_original_neurons] = 0
+        
+        self.a_pre = torch.zeros_like(self.w)
+        self.a_post = torch.zeros_like(self.w)
+
+        self.on_post_a = self.on_post_a_new_neurons
+    
+    def on_post_a_new_neurons(self, idx):
+        """
+        idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
+        """
+        try:
+            if self.approximate:
+                self.a_post[:, idx] = self.A_post[idx]
+            else: self.a_post[:, idx] += self.A_post[idx]
+        except Exception as e:
+            print(idx, type(idx))
+            print(e)
+            pass
 
 
     # def on_pre_test(self, idx, current_t):
@@ -118,46 +159,3 @@ class Synapse():
     #     self.t_i[:, idx_post.squeeze()] = current_t
     #     self.t_j[idx_pre, :] = current_t
 
-    def init_weight(self, M, N):
-        """
-        Creates a weight matrix of shape (M, N) with elements drawn from a uniform distribution (0, 1).
-
-        Args:
-            M: Number of presynaptic neurons (rows in the weight matrix).
-            N: Number of postsynaptic neurons (columns in the weight matrix).
-
-        Returns:
-            A weight matrix of shape (M, N) with random values between 0 (inclusive) and 1 (exclusive).
-        """
-        weight = np.random.uniform(low=0.0, high=1.0, size=(M, N))
-        return weight
-
-    def add_new_neurons(self,num_new_neurons):
-        num_original_neurons = self.w.shape[1]
-        new_neurons_weight = self.init_weight(M=2000, N=num_new_neurons)
-        total_neurons = num_original_neurons + num_new_neurons
-        
-        self.w = np.concatenate((self.w, new_neurons_weight), axis=1)
-
-        self.A_post = np.ones((total_neurons,)) * self.A_post
-        self.A_post[:num_original_neurons] = 0
-        self.A_pre = np.ones((total_neurons,)) * self.A_pre
-        self.A_pre[:num_original_neurons] = 0
-        
-        self.a_pre = np.zeros_like(self.w)
-        self.a_post = np.zeros_like(self.w)
-
-        self.on_post_a = self.on_post_a_new_neurons
-    
-    def on_post_a_new_neurons(self, idx):
-        """
-        idx is the index of postsynaptic neurons not in refractory period and their membrane potential above threshold
-        """
-        try:
-            if self.approximate:
-                self.a_post[:, idx] = self.A_post[idx]
-            else: self.a_post[:, idx] += self.A_post[idx]
-        except Exception as e:
-            print(idx, type(idx))
-            print(e)
-            pass

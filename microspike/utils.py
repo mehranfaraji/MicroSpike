@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
 from ipywidgets import widgets
 from IPython.display import display
@@ -6,6 +7,9 @@ from microspike import PatternGenerator, InputTrain, SRMInhibitory, Synapse, Mon
 import pickle
 import os, json
 
+def curdir():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    return current_dir
 
 # def load_hyperparameters(filename):
 #     directory = 'hyperparams_director'
@@ -32,10 +36,11 @@ def load_hyperparameters(filename):
         FileNotFoundError: If the specified file does not exist.
         ValueError: If the file is not a valid JSON file.
     """
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    hyperparams_dir = os.path.join(current_dir, '..', 'hyperparams_directory')
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
+    # hyperparams_dir = os.path.join(current_dir, '..', 'hyperparams_directory')
 
-    file_path = os.path.join(hyperparams_dir, filename)
+    # file_path = os.path.join(hyperparams_dir, filename)
+    file_path = filename
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File {file_path} not found.")
@@ -159,7 +164,7 @@ def w_uniform(M, N):
   Returns:
       A weight matrix of shape (M, N) with random values between 0 (inclusive) and 1 (exclusive).
   """
-  weight = np.random.uniform(low=0.0, high=1.0, size=(M, N))
+  weight = torch.rand(M, N)
   return weight
 
 def generate_data_train_model(P, N, M, time, w_max, w_min, A_pre, A_post, tau_pre, tau_post, approximate,
