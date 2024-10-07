@@ -6,6 +6,22 @@ from microspike import PatternGenerator, InputTrain, SRMInhibitory, Synapse, Mon
 import pickle
 import os, json
 
+def load_config(filename):
+    # Get the absolute path to the config file
+    config_path = os.path.join(os.path.dirname(__file__), 'config', filename)
+    
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"File {config_path} not found.")
+    
+    # Read and parse the JSON configuration
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    return config
+
+# Load the default model configuration
+model_config = load_config('model_config.json')
+synapse_config = load_config('synapse_config.json')
 
 # def load_hyperparameters(filename):
 #     directory = 'hyperparams_director'
@@ -18,34 +34,34 @@ import os, json
 #         print(f'{file_path} not found')
 #         return None
 
-def load_hyperparameters(filename):
-    """
-    Load hyperparameters from a JSON file located in the 'hyperparams_directory'.
+# def load_hyperparameters(filename):
+#     """
+#     Load hyperparameters from a JSON file located in the 'hyperparams_directory'.
     
-    Args:
-        filename (str): The name of the JSON file containing hyperparameters.
+#     Args:
+#         filename (str): The name of the JSON file containing hyperparameters.
 
-    Returns:
-        dict: The loaded hyperparameters as a dictionary.
+#     Returns:
+#         dict: The loaded hyperparameters as a dictionary.
     
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
-        ValueError: If the file is not a valid JSON file.
-    """
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    hyperparams_dir = os.path.join(current_dir, '..', 'hyperparams_directory')
+#     Raises:
+#         FileNotFoundError: If the specified file does not exist.
+#         ValueError: If the file is not a valid JSON file.
+#     """
+#     current_dir = os.path.dirname(os.path.abspath(__file__))
+#     hyperparams_dir = os.path.join(current_dir, '..', 'hyperparams_directory')
 
-    file_path = os.path.join(hyperparams_dir, filename)
+#     file_path = os.path.join(hyperparams_dir, filename)
 
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File {file_path} not found.")
+#     if not os.path.exists(file_path):
+#         raise FileNotFoundError(f"File {file_path} not found.")
     
-    try:
-        with open(file_path, 'r') as f:
-            hyperparams = json.load(f)
-        return hyperparams
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Error reading JSON file {file_path}: {e}")
+#     try:
+#         with open(file_path, 'r') as f:
+#             hyperparams = json.load(f)
+#         return hyperparams
+#     except json.JSONDecodeError as e:
+#         raise ValueError(f"Error reading JSON file {file_path}: {e}")
 
 def investigate_potential(monitor, dt, position_copypaste):
     """

@@ -1,0 +1,9 @@
+{
+    "approximate": true,
+    "w_max": 1,
+    "w_min": 0,
+    "A_pre": 0.03125,
+    "A_post": -0.0265625,
+    "tau_pre": 0.0168,
+    "tau_post": 0.0337
+}
