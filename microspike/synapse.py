@@ -44,7 +44,7 @@ class Synapse():
         """
         spikes_i contains only the correct window of spikes_i
         """
-        return self.w[spikes_i, i].squeeze().T
+        return self.w[spikes_i, i].squeeze()
 
     def on_pre_w(self,idx):
         """
