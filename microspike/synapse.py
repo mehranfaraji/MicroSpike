@@ -12,6 +12,7 @@ class Synapse():
                 A_post: float,
                 tau_pre: float,
                 tau_post: float,
+                use_punishment_inference: bool,
                 approximate: bool = True,
                 dt : float = None
                 ) -> None:
@@ -25,6 +26,7 @@ class Synapse():
         self.tau_post = tau_post
         ## if True do nearest spike approximation, else consider all the contributions of the previous presynaptic spikes
         self.approximate = approximate
+        self.use_punishment_inference = use_punishment_inference
         
         self.a_pre = np.zeros_like(self.w)
         self.a_post = np.zeros_like(self.w)
@@ -89,7 +91,7 @@ class Synapse():
     def update_synapse(self,idx_post_spikinig, idx_pre_spiking, inside_wrong_pattern:Union[bool, None]):
         self.on_post_w(idx_post_spikinig)
         self.on_pre_w(idx_pre_spiking)
-        if inside_wrong_pattern is None or inside_wrong_pattern == False:
+        if (inside_wrong_pattern is None) or (inside_wrong_pattern == False) or (not self.use_punishment_inference):
             self.on_post_a(idx_post_spikinig)
             self.on_pre_a(idx_pre_spiking)
             self.update_a()
