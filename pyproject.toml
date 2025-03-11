@@ -1,6 +1,6 @@
 [project]
 name = "microspike"
-version = "0.1.0"
+version = "0.1.0.0.1"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "ipykernel>=6.29.5",
     "ipywidgets>=8.1.5",
     "matplotlib>=3.9.2",
     "numba>=0.60.0",
@@ -18,3 +17,6 @@ dependencies = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+    publish-url = "https://test.pypi.org/legacy/"
